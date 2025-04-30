@@ -1,7 +1,7 @@
 import psycopg2
 import os
 from datetime import datetime
-
+import pytz  # ✅ Importado para aplicar fuso horário de Brasília
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:xLKoVVPlMmyeagijivkkRVlpraTxTqIg@switchyard.proxy.rlwy.net:44803/railway")
 
@@ -15,7 +15,7 @@ def testar_conexao():
     versao = cur.fetchone()
     return versao
 
-#Criar Tabela no Banco de Dados
+# Criar Tabela no Banco de Dados
 def criar_tabela_chamados():
     cur.execute("DROP TABLE IF EXISTS chamados")
     cur.execute("""
@@ -29,19 +29,12 @@ def criar_tabela_chamados():
     """)
     conn.commit()
 
-
 def inserir_chamado(descricao, cliente, status_atual, historico):
     cur.execute("""
         INSERT INTO chamados (descricao, cliente, status_atual, historico)
         VALUES (%s, %s, %s, %s)
     """, (descricao, cliente, status_atual, historico))
     conn.commit()
-
-
-#criar_tabela_chamados()
-
-#inserir_chamado("Instalar software de segurança", "Empresa XPTO", "Em andamento", "Primeiras 5 máquinas atualizadas")
-
 
 def atualizar_chamado(chamado_id, novo_status):
     # Buscar o histórico atual
@@ -52,11 +45,12 @@ def atualizar_chamado(chamado_id, novo_status):
         raise Exception("Chamado não encontrado.")
     
     historico_atual = resultado[0] or ""
-    
-    # Gerar o novo trecho de histórico com data e hora
-    agora = datetime.now().strftime("%d/%m/%Y %H:%M")
+
+    # ✅ Gerar o novo trecho de histórico com fuso de Brasília
+    brasilia = pytz.timezone("America/Sao_Paulo")
+    agora = datetime.now(brasilia).strftime("%d/%m/%Y %H:%M")
     novo_trecho = f"[{novo_status} - {agora}]"
-    
+
     # Atualizar o histórico acumulado
     if historico_atual:
         historico_novo = historico_atual + ", " + novo_trecho
@@ -72,8 +66,6 @@ def atualizar_chamado(chamado_id, novo_status):
     """, (novo_status, historico_novo, chamado_id))
     conn.commit()
 
-
-
 def buscar_chamados_por_status(status_atual):
     cur.execute("""
         SELECT chamado, descricao, cliente, status_atual, historico
@@ -84,8 +76,6 @@ def buscar_chamados_por_status(status_atual):
     chamados = cur.fetchall()
     return chamados
 
-
-
 def buscar_chamados_por_cliente(cliente):
     cur.execute("""
         SELECT chamado, descricao, cliente, status_atual, historico
@@ -95,4 +85,3 @@ def buscar_chamados_por_cliente(cliente):
     """, (f"%{cliente}%",))
     chamados = cur.fetchall()
     return chamados
-
